@@ -258,9 +258,10 @@
     <div class="help-text">
       1) Importa la base musicale da <b>File</b> (facoltativo).<br>
       2) Premi <b>●</b> per registrare la voce: la base si riproduce insieme, se presente.<br>
-      3) Regola volume/mute/solo sulle tracce a sinistra.<br>
-      4) Apri <b>Impostazioni</b> per autotune e potenziamento vocale.<br>
-      5) Premi <b>▶</b> per riascoltare, oppure esporta il mix finale in WAV.
+      3) Premi di nuovo <b>●</b> (ora rosso e lampeggiante) per fermare la registrazione.<br>
+      4) Regola volume/mute/solo sulle tracce a sinistra.<br>
+      5) Apri <b>Impostazioni</b> per autotune e potenziamento vocale.<br>
+      6) Premi <b>▶</b> per riascoltare, oppure esporta il mix finale in WAV.
     </div>
   </div>
 
@@ -287,7 +288,7 @@
     </div>
     <div class="clock-display" id="clock">00:00.0</div>
     <div class="transport-controls">
-      <button class="t-btn rec" id="btnRec" title="Registra voce">●</button>
+      <button class="t-btn rec" id="btnRec" title="Registra / Ferma registrazione voce">●</button>
       <button class="t-btn" id="btnPlay" title="Play">▶</button>
       <button class="t-btn small" id="btnToStart" title="Torna all'inizio">|◀</button>
       <button class="t-btn small" id="btnRewind" title="Indietro 5s">◀◀</button>
@@ -582,7 +583,7 @@
   function refreshTimeline(){
     updateTimelineWidth();
     if (voice.hasClip) renderClip(voice, "Voce");
-    if (music.hasClip) renderClip(music, document.getElementById("musicFileName") ? music.fileName || "Base musicale" : "Base musicale");
+    if (music.hasClip) renderClip(music, music.fileName || "Base musicale");
     updatePlayheadDisplay(seekOffset);
   }
 
@@ -742,7 +743,22 @@
     updatePlayheadDisplay(seekOffset);
   }
 
-  document.getElementById("btnRec").addEventListener("click", () => { if (!isRecording && !isPlaying) startRecording(); });
+  // ═══ CORREZIONE ═══
+  // Prima il pulsante ● avviava SOLO la registrazione: un secondo click, mentre
+  // era già attivo, non faceva nulla. Il MediaRecorder restava acceso per
+  // sempre e l'evento "onstop" (che decodifica l'audio e lo mette in traccia)
+  // non veniva mai generato: per questo la voce non risultava mai registrata
+  // e non c'era modo di fermarla. Ora il pulsante è un vero toggle:
+  // - se non stai registrando -> avvia la registrazione
+  // - se stai registrando -> la ferma, il che genera "onstop" e finalizza la clip
+  document.getElementById("btnRec").addEventListener("click", () => {
+    if (isRecording){
+      stopRecording();
+    } else if (!isPlaying){
+      startRecording();
+    }
+  });
+
   document.getElementById("btnPlay").addEventListener("click", () => {
     if (isRecording) return;
     if (isPlaying) stopAll(); else playAll();
