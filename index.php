@@ -258,6 +258,7 @@
     <div class="help-text">
       1) Importa la base musicale da <b>File</b> (facoltativo).<br>
       2) Premi <b>●</b> per registrare la voce: la base si riproduce insieme, se presente.<br>
+      <b>⚠ Usa le cuffie</b> durante la registrazione: se la base esce dagli altoparlanti, il microfono la capta insieme alla tua voce e questo può rovinare la registrazione vocale.<br>
       3) Premi di nuovo <b>●</b> (ora rosso e lampeggiante) per fermare la registrazione.<br>
       4) Regola volume/mute/solo sulle tracce a sinistra. Usa <b>⋯</b> per eliminare il contenuto di una traccia.<br>
       5) Apri <b>Impostazioni</b> per autotune e potenziamento vocale.<br>
@@ -672,7 +673,26 @@
     await ensureRunning();
 
     try{
-      currentMicStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      // NOTA IMPORTANTE: qui disattiviamo i filtri automatici del microfono
+      // (echoCancellation, noiseSuppression, autoGainControl). Se registri
+      // ascoltando la base musicale dagli ALTOPARLANTI (non in cuffia), il
+      // microfono capta anche quella musica insieme alla tua voce. L'echo
+      // cancellation del browser, nel tentativo di "rimuovere l'eco" della
+      // base che sente uscire dagli altoparlanti, può finire per attenuare o
+      // cancellare quasi del tutto anche la voce sovrapposta — con il
+      // risultato che, in riproduzione, si sente solo la musica (che è
+      // semplicemente il file originale, mai passato dal microfono) e non
+      // la voce. Disattivando questi filtri il segnale vocale resta integro;
+      // in cambio, se non usi le cuffie, la registrazione della voce potrà
+      // contenere un po' di "bleed" (la base che filtra dagli altoparlanti),
+      // ma questo è molto preferibile ad avere la voce del tutto assente.
+      currentMicStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      });
     }catch(err){
       alert("Microfono inaccessibile: controlla i permessi del browser per questo sito.");
       return;
@@ -1140,3 +1160,4 @@
 </script>
 </body>
 </html>
+
