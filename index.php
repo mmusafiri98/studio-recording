@@ -233,6 +233,12 @@
       </select>
     </div>
     <div class="settings-row">
+      <button class="settings-btn" id="btnDetectKey">🔍 Rileva tonalità dalla base</button>
+    </div>
+    <div class="settings-row">
+      <span id="detectedKeyNote" class="settings-note" style="margin-top:0;"></span>
+    </div>
+    <div class="settings-row">
       <label>Intensità</label>
       <input type="range" id="atIntensity" min="0" max="100" value="70">
       <span id="atIntensityVal" style="font-size:11px;">70%</span>
@@ -249,19 +255,22 @@
     <div class="settings-note">
       L'autotune analizza l'intonazione e la avvicina alla nota più vicina della scala scelta
       (elaborazione del segnale, applicata dopo la registrazione — non una rete neurale).
-      Il potenziamento vocale è una catena di filtri professionale in tempo reale.
+      Quando importi una base musicale, la tonalità viene stimata automaticamente analizzando
+      l'armonia del brano (algoritmo chroma + profili di Krumhansl-Schmuckler); puoi sempre
+      correggerla a mano qui sopra. Il potenziamento vocale è una catena di filtri professionale
+      in tempo reale (non IA generativa).
     </div>
   </div>
 
   <div class="dropdown" id="menuHelp">
     <h4>Come funziona</h4>
     <div class="help-text">
-      1) Importa la base musicale da <b>File</b> (facoltativo).<br>
+      1) Importa la base musicale da <b>File</b> (facoltativo). La tonalità viene rilevata automaticamente.<br>
       2) Premi <b>●</b> per registrare la voce: la base si riproduce insieme, se presente.<br>
       <b>⚠ Usa le cuffie</b> durante la registrazione: se la base esce dagli altoparlanti, il microfono la capta insieme alla tua voce e questo può rovinare la registrazione vocale.<br>
       3) Premi di nuovo <b>●</b> (ora rosso e lampeggiante) per fermare la registrazione.<br>
       4) Regola volume/mute/solo sulle tracce a sinistra. Usa <b>⋯</b> per eliminare il contenuto di una traccia.<br>
-      5) Apri <b>Impostazioni</b> per autotune e potenziamento vocale.<br>
+      5) Apri <b>Impostazioni</b> per autotune (tonalità già rilevata) e potenziamento vocale.<br>
       6) Premi <b>▶</b> per riascoltare dall'inizio, oppure esporta il mix finale in WAV.
     </div>
   </div>
@@ -455,6 +464,8 @@
       setUndoRedoState();
     } else {
       track.fileName = null;
+      const note = document.getElementById("detectedKeyNote");
+      if (note) note.textContent = "";
     }
 
     track.statusEl.textContent = "Vuota";
@@ -782,6 +793,7 @@
     music.statusEl.textContent = `✓ ${music.audioBuffer.duration.toFixed(1)}s`;
     music.statusEl.className = "track-status has-clip";
     refreshTimeline();
+    detectAndApplyKey(true);
   });
 
   // ── Trasporto: play / stop / seek / loop ───────────────────
@@ -885,6 +897,7 @@
   // ── Autotune: rilevamento + correzione intonazione ──────────
   const KEY_ROOTS = {C:0,"C#":1,D:2,"D#":3,E:4,F:5,"F#":6,G:7,"G#":8,A:9,"A#":10,B:11};
   const SCALE_DEFS = { chromatic:[0,1,2,3,4,5,6,7,8,9,10,11], major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10] };
+  const PITCH_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
   function buildAllowedSet(rootPc, intervals){ const s=new Set(); intervals.forEach(i=>s.add((rootPc+i)%12)); return s; }
   function nearestNoteFreq(freq, allowedPc){
@@ -921,6 +934,103 @@
     for (let ch=0; ch<buffer.numberOfChannels; ch++){ const data=buffer.getChannelData(ch); for (let i=0;i<len;i++) out[i]+=data[i]/buffer.numberOfChannels; }
     return out;
   }
+
+  // ── Stima automatica della tonalità della base musicale ─────
+  // Algoritmo: costruiamo un "cromagramma" (istogramma di energia per ciascuna
+  // delle 12 classi di altezza C, C#, D...) analizzando la traccia a blocchi,
+  // poi lo confrontiamo con i profili tonali di Krumhansl-Schmuckler (uno per
+  // il maggiore, uno per il minore) ruotati su ciascuna delle 12 possibili
+  // toniche: la combinazione con la correlazione più alta è la tonalità stimata.
+  // Non è una rete neurale, ma un'analisi armonica classica — gira interamente
+  // nel browser, in pochi secondi, senza bisogno di un server.
+  const KS_MAJOR = [6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+  const KS_MINOR = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+
+  async function computeChromaVectorAsync(buffer, maxSeconds){
+    const mono = buffer.numberOfChannels>1 ? downmix(buffer) : buffer.getChannelData(0);
+    const sampleRate = buffer.sampleRate;
+    const BLOCK = 4096;
+    const maxSamples = Math.min(mono.length, Math.floor((maxSeconds||30)*sampleRate));
+    const chroma = new Float32Array(12);
+    let processed = 0;
+    for (let start=0; start<maxSamples; start+=BLOCK){
+      const frame = mono.subarray(start, Math.min(start+BLOCK, maxSamples));
+      if (frame.length < BLOCK/2) break;
+      const freq = detectPitch(frame, sampleRate);
+      if (freq){
+        let energy=0; for (let i=0;i<frame.length;i++) energy+=frame[i]*frame[i];
+        const midi = 69+12*Math.log2(freq/440);
+        const pc = ((Math.round(midi)%12)+12)%12;
+        chroma[pc]+=energy;
+      }
+      processed++;
+      // Cediamo periodicamente il controllo al thread principale per non
+      // bloccare l'interfaccia durante l'analisi di basi musicali lunghe.
+      if (processed % 15 === 0){ await new Promise(r=>setTimeout(r,0)); }
+    }
+    return chroma;
+  }
+
+  function rotateProfile(profile, r){
+    const out = new Array(12);
+    for (let i=0;i<12;i++) out[i] = profile[(i - r + 12) % 12];
+    return out;
+  }
+  function correlate(a,b){
+    const ma=a.reduce((x,y)=>x+y,0)/12, mb=b.reduce((x,y)=>x+y,0)/12;
+    let num=0, da=0, db=0;
+    for (let i=0;i<12;i++){ num+=(a[i]-ma)*(b[i]-mb); da+=(a[i]-ma)**2; db+=(b[i]-mb)**2; }
+    return num/(Math.sqrt(da*db)||1e-9);
+  }
+
+  async function estimateKey(buffer){
+    const chroma = Array.from(await computeChromaVectorAsync(buffer, 30));
+    const totalEnergy = chroma.reduce((a,b)=>a+b,0);
+    if (totalEnergy < 1e-6) return null; // segnale troppo debole/silenzioso per un'analisi affidabile
+    let best = { score:-Infinity, root:"C", scale:"major" };
+    for (let r=0;r<12;r++){
+      const scoreMaj = correlate(chroma, rotateProfile(KS_MAJOR, r));
+      const scoreMin = correlate(chroma, rotateProfile(KS_MINOR, r));
+      if (scoreMaj>best.score) best = { score:scoreMaj, root:PITCH_NAMES[r], scale:"major" };
+      if (scoreMin>best.score) best = { score:scoreMin, root:PITCH_NAMES[r], scale:"minor" };
+    }
+    return best;
+  }
+
+  let keyDetectionInProgress = false;
+  async function detectAndApplyKey(silent){
+    if (!music.hasClip){
+      if (!silent) alert("Importa prima una base musicale da analizzare.");
+      return;
+    }
+    if (keyDetectionInProgress) return;
+    keyDetectionInProgress = true;
+    const note = document.getElementById("detectedKeyNote");
+    const btn = document.getElementById("btnDetectKey");
+    if (note) note.textContent = "Analisi in corso…";
+    if (btn) btn.disabled = true;
+    try{
+      const result = await estimateKey(music.audioBuffer);
+      if (!result){
+        if (note) note.textContent = "Tonalità non rilevabile (base troppo silenziosa o percussiva).";
+        return;
+      }
+      document.getElementById("atRoot").value = result.root;
+      document.getElementById("atScale").value = result.scale;
+      updateKeyDisplay();
+      if (note){
+        const scaleLabel = result.scale==="major" ? "maggiore" : "minore";
+        note.textContent = `Tonalità rilevata: ${result.root} ${scaleLabel} — impostata sopra, correggila se necessario.`;
+      }
+    }catch(err){
+      if (note) note.textContent = "Errore durante il rilevamento della tonalità.";
+    }finally{
+      keyDetectionInProgress = false;
+      if (btn) btn.disabled = false;
+    }
+  }
+  document.getElementById("btnDetectKey").addEventListener("click", () => detectAndApplyKey(false));
+
   function pitchCorrectBuffer(inputBuffer, opts){
     const { rootPc, intervals, intensity } = opts;
     const sampleRate = inputBuffer.sampleRate;
@@ -1160,4 +1270,3 @@
 </script>
 </body>
 </html>
-
