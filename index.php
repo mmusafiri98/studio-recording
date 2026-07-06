@@ -627,7 +627,25 @@
     seekOffset = 0;
     timelineStartRef = audioCtx.currentTime;
     startClockLoop();
-    if (music.hasClip) playSingleTrack(music, 0);
+    if (music.hasClip) loopMusicDuringRecording();
+  }
+
+  function loopMusicDuringRecording(){
+    if (!music.hasClip) return;
+    const src = playSingleTrack(music, 0);
+    src.onended = () => {
+      // Se il loop è attivo e stiamo ancora registrando, la base musicale
+      // riparte da capo così puoi continuare a cantare senza interruzioni.
+      if (isRecording && loopOn) loopMusicDuringRecording();
+    };
+  }
+
+  function stopRecording(){
+    if (voice.recorder && voice.recorder.state !== "inactive") voice.recorder.stop();
+    stopSourcesOnly(); // ferma anche la base musicale insieme alla voce
+    isRecording = false;
+    document.getElementById("btnRec").classList.remove("is-live");
+    stopClockLoop();
   }
 
   async function finalizeRecording(){
