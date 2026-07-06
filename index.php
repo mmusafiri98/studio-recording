@@ -97,7 +97,7 @@
   .track-name-row{ display:flex; align-items:center; justify-content:space-between; gap:6px; }
   .track-name{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .track-more{ font-size:14px; color:var(--text-dim); padding:2px 4px; border-radius:4px; }
-  .track-more:hover{ background:#2a2933; }
+  .track-more:hover{ background:#42303a; color:#ff8f87; }
   .track-icons{ display:flex; gap:5px; }
   .ic{
     width:24px; height:22px; border-radius:5px; font-size:10px; font-weight:700; color:var(--text-dim);
@@ -259,9 +259,9 @@
       1) Importa la base musicale da <b>File</b> (facoltativo).<br>
       2) Premi <b>●</b> per registrare la voce: la base si riproduce insieme, se presente.<br>
       3) Premi di nuovo <b>●</b> (ora rosso e lampeggiante) per fermare la registrazione.<br>
-      4) Regola volume/mute/solo sulle tracce a sinistra.<br>
+      4) Regola volume/mute/solo sulle tracce a sinistra. Usa <b>⋯</b> per eliminare il contenuto di una traccia.<br>
       5) Apri <b>Impostazioni</b> per autotune e potenziamento vocale.<br>
-      6) Premi <b>▶</b> per riascoltare, oppure esporta il mix finale in WAV.
+      6) Premi <b>▶</b> per riascoltare dall'inizio, oppure esporta il mix finale in WAV.
     </div>
   </div>
 
@@ -337,7 +337,20 @@
       masterGain.gain.value = parseFloat(document.getElementById("masterFader").value);
       masterGain.connect(audioCtx.destination);
     }
-    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  // Garantisce che il contesto audio sia REALMENTE attivo prima di far partire
+  // suoni. Il browser può lasciare l'AudioContext in stato "suspended" finché
+  // non viene esplicitamente ripreso: se si avviano le sorgenti senza aspettare
+  // che resume() sia completato, capita che parta tutto "in silenzio" (o con un
+  // ritardo/troncamento) perché il grafo audio non era ancora collegato
+  // all'uscita reale. Questa è una delle cause più comuni di "non sento niente".
+  async function ensureRunning(){
+    ensureContext();
+    if (audioCtx.state !== "running"){
+      try{ await audioCtx.resume(); }catch(e){ /* ignorato: proveremo comunque a suonare */ }
+    }
     return audioCtx;
   }
 
@@ -371,7 +384,7 @@
       <div class="track-info">
         <div class="track-name-row">
           <div class="track-name">Voce</div>
-          <button class="track-more">⋯</button>
+          <button class="track-more" title="Elimina contenuto traccia">⋯</button>
         </div>
         <div class="track-icons">
           <button class="ic mute" title="Muto">M</button>
@@ -387,7 +400,7 @@
       <div class="track-info">
         <div class="track-name-row">
           <div class="track-name">Base musicale</div>
-          <button class="track-more">⋯</button>
+          <button class="track-more" title="Elimina contenuto traccia">⋯</button>
         </div>
         <div class="track-icons">
           <button class="ic mute" title="Muto">M</button>
@@ -421,6 +434,50 @@
   }
   wireCommon(voice);
   wireCommon(music);
+
+  // ── Eliminazione contenuto traccia (pulsante ⋯) ────────────
+  function clearTrack(track){
+    if (!track.hasClip){ return; }
+    // Se stiamo registrando o riproducendo, fermiamo tutto prima di cancellare
+    // per evitare sorgenti audio "orfane" ancora collegate al grafo.
+    if (isRecording || isPlaying) stopAll();
+
+    track.hasClip = false;
+    track.audioBuffer = null;
+    track.originalBuffer = null;
+
+    if (track.isVoice){
+      lastAutotuneBuffer = null;
+      if (track.blobUrl){ URL.revokeObjectURL(track.blobUrl); track.blobUrl = null; }
+      const btnRestore = document.getElementById("btnRestoreVoice");
+      if (btnRestore) btnRestore.disabled = true;
+      setUndoRedoState();
+    } else {
+      track.fileName = null;
+    }
+
+    track.statusEl.textContent = "Vuota";
+    track.statusEl.className = "track-status";
+    track.clipEl.innerHTML = "";
+    track.clipEl.style.width = "0";
+    track.hintEl.style.display = "";
+
+    refreshTimeline();
+  }
+
+  document.querySelectorAll(".track-more").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const row = btn.closest(".track-row");
+      const trackId = row.dataset.track;
+      const track = trackId === "voice" ? voice : music;
+      const label = trackId === "voice" ? "Voce" : "Base musicale";
+      if (!track.hasClip){ alert(`La traccia "${label}" è già vuota.`); return; }
+      if (confirm(`Eliminare il contenuto della traccia "${label}"? L'operazione non può essere annullata.`)){
+        clearTrack(track);
+      }
+    });
+  });
 
   function recomputeGains(){
     const anySolo = tracks.some(t => t.solo);
@@ -607,7 +664,13 @@
   // ── Registrazione voce ─────────────────────────────────────
   async function startRecording(){
     if (voice.hasClip && !confirm("Questo sovrascriverà la registrazione vocale attuale. Continuare?")) return;
-    ensureContext();
+
+    // Attendiamo che il contesto sia davvero "running" PRIMA di far partire la
+    // base musicale di accompagnamento, altrimenti potrebbe non sentirsi in cuffia/altoparlanti
+    // durante la registrazione (la registrazione del microfono in sé non dipende
+    // dall'AudioContext e non viene mai compromessa da questo).
+    await ensureRunning();
+
     try{
       currentMicStream = await navigator.mediaDevices.getUserMedia({ audio:true });
     }catch(err){
@@ -646,6 +709,10 @@
     stopSourcesOnly(); // ferma anche la base musicale insieme alla voce
     isRecording = false;
     document.getElementById("btnRec").classList.remove("is-live");
+    // Riportiamo esplicitamente il punto di riascolto all'inizio: così quando
+    // premi ▶ subito dopo aver registrato, il riascolto parte sempre da 0 e
+    // non dal punto in cui ti sei fermato mentre cantavi.
+    seekOffset = 0;
     stopClockLoop();
   }
 
@@ -671,6 +738,7 @@
 
     if (currentMicStream){ currentMicStream.getTracks().forEach(t => t.stop()); currentMicStream = null; }
 
+    seekOffset = 0;
     stopClockLoop();
     isRecording = false;
     document.getElementById("btnRec").classList.remove("is-live");
@@ -697,11 +765,21 @@
   });
 
   // ── Trasporto: play / stop / seek / loop ───────────────────
-  function playAll(){
-    ensureContext();
+  async function playAll(){
+    // 1) assicura il contesto attivo E ASPETTA che lo sia davvero
+    await ensureRunning();
+
     const withClip = tracks.filter(t => t.hasClip);
     if (withClip.length === 0){ alert("Registra la voce o importa una base musicale prima di ascoltare."); return; }
+
+    // 2) costruisci PRIMA le catene audio di tutte le tracce coinvolte
+    withClip.forEach(t => buildChainIfNeeded(t));
+    // 3) SOLO ORA calcola i volumi/mute/solo: se questo veniva fatto prima che
+    //    la catena esistesse, per una traccia mai suonata prima (tipicamente la
+    //    voce appena registrata) la funzione non aveva nulla su cui agire e le
+    //    impostazioni di volume/mute/solo non venivano applicate correttamente.
     recomputeGains();
+
     let maxDur = 0;
     withClip.forEach(t => { playSingleTrack(t, seekOffset); maxDur = Math.max(maxDur, t.audioBuffer.duration); });
     isPlaying = true;
@@ -743,14 +821,6 @@
     updatePlayheadDisplay(seekOffset);
   }
 
-  // ═══ CORREZIONE ═══
-  // Prima il pulsante ● avviava SOLO la registrazione: un secondo click, mentre
-  // era già attivo, non faceva nulla. Il MediaRecorder restava acceso per
-  // sempre e l'evento "onstop" (che decodifica l'audio e lo mette in traccia)
-  // non veniva mai generato: per questo la voce non risultava mai registrata
-  // e non c'era modo di fermarla. Ora il pulsante è un vero toggle:
-  // - se non stai registrando -> avvia la registrazione
-  // - se stai registrando -> la ferma, il che genera "onstop" e finalizza la clip
   document.getElementById("btnRec").addEventListener("click", () => {
     if (isRecording){
       stopRecording();
@@ -784,8 +854,8 @@
     const secondsPerBeat = 60/bpm;
     while (nextNoteTime < audioCtx.currentTime + 0.1){ scheduleClick(nextNoteTime); nextNoteTime += secondsPerBeat; }
   }
-  document.getElementById("btnClick").addEventListener("click", (e) => {
-    ensureContext();
+  document.getElementById("btnClick").addEventListener("click", async (e) => {
+    await ensureRunning();
     clickOn = !clickOn;
     e.currentTarget.classList.toggle("is-on", clickOn);
     if (clickOn){ nextNoteTime = audioCtx.currentTime+0.05; schedulerTimer = setInterval(metronomeScheduler, 25); }
@@ -1070,4 +1140,3 @@
 </script>
 </body>
 </html>
-
