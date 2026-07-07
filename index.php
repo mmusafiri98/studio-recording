@@ -71,7 +71,11 @@
   .settings-panel{ min-width:280px; }
   .settings-row{ display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
   .settings-row label{ font-size:12px; color:var(--text-dim); min-width:64px; }
-  .settings-panel select, .settings-panel input[type=number]{
+  .settings-panel select, .settings-panel input[type=number],
+  .autotune-popover select, .autotune-popover input[type=number]{
+    background:#141318; border:1px solid var(--border); color:var(--text); border-radius:5px; padding:5px 7px; font-size:12px;
+  }
+  .eq-popover select, .eq-popover input[type=number]{
     background:#141318; border:1px solid var(--border); color:var(--text); border-radius:5px; padding:5px 7px; font-size:12px;
   }
   .settings-panel input[type=range]{ flex:1; accent-color:var(--accent); }
@@ -85,11 +89,52 @@
   .settings-note{ font-size:10.5px; color:var(--text-dim); line-height:1.5; margin-top:6px; }
   .help-text{ font-size:12px; color:var(--text-dim); line-height:1.6; max-width:260px; }
 
+  /* ═══ POPOVER AUTOTUNE SULLA TRACCIA VOCE ═══ */
+  .track-autotune-row{ margin-top:2px; }
+  .track-autotune-btn{
+    display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600;
+    padding:4px 9px; border-radius:12px; background:#2f2840; color:#c9bdf7;
+  }
+  .track-autotune-btn:hover{ background:#3a3150; }
+  .track-autotune-btn.is-on{ background:var(--accent); color:#fff; }
+
+  .track-eq-row{ margin-top:2px; }
+  .track-eq-btn{
+    display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600;
+    padding:4px 9px; border-radius:12px; background:#233024; color:#a7e8c2;
+  }
+  .track-eq-btn:hover{ background:#2b3c2d; }
+  .track-eq-btn.is-on{ background:var(--green); color:#0e2015; }
+
+  .eq-popover{
+    display:none; position:fixed; z-index:60; background:#232128; border:1px solid var(--border);
+    border-radius:10px; padding:12px; width:280px; max-width:calc(100vw - 20px);
+    box-shadow:0 14px 34px rgba(0,0,0,0.55);
+  }
+  .eq-popover.open{ display:block; }
+  .eq-popover input[type=range]{ flex:1; accent-color:var(--green); }
+  .eq-popover .settings-row label{ min-width:56px; }
+  .eq-popover .settings-row span{ font-size:11px; color:var(--text-dim); min-width:40px; text-align:right; }
+
+  .autotune-popover{
+    display:none; position:fixed; z-index:60; background:#232128; border:1px solid var(--border);
+    border-radius:10px; padding:12px; width:300px; max-width:calc(100vw - 20px);
+    box-shadow:0 14px 34px rgba(0,0,0,0.55);
+  }
+  .autotune-popover.open{ display:block; }
+  .autotune-popover input[type=range]{ flex:1; accent-color:var(--accent); }
+  .popover-header{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;
+  }
+  .popover-header span{ font-size:12px; font-weight:700; letter-spacing:0.3px; color:var(--text); text-transform:uppercase; }
+  .popover-header button{ font-size:13px; color:var(--text-dim); width:22px; height:22px; border-radius:5px; }
+  .popover-header button:hover{ background:#33313a; color:var(--text); }
+
   /* ═══ WORKSPACE ═══ */
   .workspace{ flex:1; display:flex; overflow:hidden; }
 
   .track-headers{ width:240px; flex-shrink:0; background:var(--bg-panel); border-right:1px solid var(--border); overflow-y:auto; }
-  .track-row{ display:flex; align-items:stretch; border-bottom:1px solid var(--border); height:88px; }
+  .track-row{ display:flex; align-items:stretch; border-bottom:1px solid var(--border); min-height:88px; }
   .track-color{ width:5px; flex-shrink:0; }
   .track-row[data-track="voice"] .track-color{ background:var(--voice-color); }
   .track-row[data-track="music"] .track-color{ background:var(--music-color); }
@@ -218,7 +263,54 @@
   </div>
 
   <div class="dropdown settings-panel" id="menuSettings">
-    <h4>Autotune</h4>
+    <h4>Potenziamento vocale</h4>
+    <div class="toggle-line">
+      <input type="checkbox" id="voiceEnhancer">
+      <label for="voiceEnhancer">Anti-rombo + compressore + presenza + riverbero</label>
+    </div>
+    <div class="settings-note">
+      Catena di filtri professionale in tempo reale (non IA generativa).<br><br>
+      L'<b>autotune</b> si trova ora direttamente sulla traccia <b>Voce</b>: clicca il pulsante
+      "🎵 Autotune" a sinistra della timeline.
+    </div>
+  </div>
+
+  <div class="dropdown" id="menuHelp">
+    <h4>Come funziona</h4>
+    <div class="help-text">
+      1) Importa la base musicale da <b>File</b> (facoltativo). La tonalità viene rilevata automaticamente.<br>
+      2) Premi <b>●</b> per registrare la voce: la base si riproduce insieme, se presente.<br>
+      <b>⚠ Usa le cuffie</b> durante la registrazione: se la base esce dagli altoparlanti, il microfono la capta insieme alla tua voce e questo può rovinare la registrazione vocale.<br>
+      3) Premi di nuovo <b>●</b> (ora rosso e lampeggiante) per fermare la registrazione.<br>
+      4) Regola volume/mute/solo sulle tracce a sinistra. Usa <b>⋯</b> per eliminare il contenuto di una traccia.<br>
+      5) Clicca <b>🎵 Autotune</b> sulla traccia Voce: la tonalità già rilevata dalla base è preimpostata, regola l'intensità e premi Applica.<br>
+      6) Clicca <b>🎚️ EQ/Reverb</b> su qualsiasi traccia per regolare bassi/medi/alti e aggiungere del riverbero, in tempo reale.<br>
+      7) Apri <b>Impostazioni</b> per il potenziamento vocale.<br>
+      8) Premi <b>▶</b> per riascoltare dall'inizio, oppure esporta il mix finale in WAV.
+    </div>
+  </div>
+
+  <!-- ═══ WORKSPACE ═══ -->
+  <div class="workspace">
+    <div class="track-headers" id="trackHeaders"><!-- generato in JS --></div>
+    <div class="timeline-area">
+      <div class="timeline-scroll" id="timelineScroll">
+        <div class="ruler" id="ruler"></div>
+        <div class="lanes" id="lanes">
+          <div class="lane" data-track="voice"><div class="lane-clip voice" id="voiceClip" style="width:0"></div><div class="lane-empty-hint" id="voiceHint">Nessuna registrazione — premi ●</div></div>
+          <div class="lane" data-track="music"><div class="lane-clip music" id="musicClip" style="width:0"></div><div class="lane-empty-hint" id="musicHint">Nessun file — importa da File</div></div>
+        </div>
+        <div class="playhead-line" id="playheadLine" style="left:0"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ POPOVER AUTOTUNE (ancorato alla traccia Voce) ═══ -->
+  <div class="autotune-popover" id="autotunePopover">
+    <div class="popover-header">
+      <span>🎵 Autotune — Voce</span>
+      <button id="closeAutotunePopover" title="Chiudi">✕</button>
+    </div>
     <div class="settings-row">
       <label>Tonalità</label>
       <select id="atRoot">
@@ -247,46 +339,46 @@
       <button class="settings-btn primary" id="btnAutotune">Applica</button>
       <button class="settings-btn" id="btnRestoreVoice" disabled>Ripristina originale</button>
     </div>
-    <h4 style="margin-top:12px;">Potenziamento vocale</h4>
-    <div class="toggle-line">
-      <input type="checkbox" id="voiceEnhancer">
-      <label for="voiceEnhancer">Anti-rombo + compressore + presenza + riverbero</label>
+    <div class="settings-note">
+      Analizza l'intonazione della voce e la avvicina alla nota più vicina della tonalità scelta
+      (elaborazione del segnale post-registrazione). Quando importi una base musicale, la tonalità
+      qui sopra viene preimpostata automaticamente analizzando l'armonia del brano (cromagramma +
+      profili di Krumhansl-Schmuckler) — correggila a mano se necessario.
+    </div>
+  </div>
+
+  <!-- ═══ POPOVER EQ/REVERB (condiviso tra le tracce Voce e Base musicale) ═══ -->
+  <div class="eq-popover" id="eqReverbPopover">
+    <div class="popover-header">
+      <span id="eqPopoverTitle">🎚️ EQ &amp; Reverb</span>
+      <button id="closeEqPopover" title="Chiudi">✕</button>
+    </div>
+    <div class="settings-row">
+      <label>Bassi</label>
+      <input type="range" id="eqLowSlider" min="-12" max="12" step="0.5" value="0">
+      <span id="eqLowVal">0 dB</span>
+    </div>
+    <div class="settings-row">
+      <label>Medi</label>
+      <input type="range" id="eqMidSlider" min="-12" max="12" step="0.5" value="0">
+      <span id="eqMidVal">0 dB</span>
+    </div>
+    <div class="settings-row">
+      <label>Alti</label>
+      <input type="range" id="eqHighSlider" min="-12" max="12" step="0.5" value="0">
+      <span id="eqHighVal">0 dB</span>
+    </div>
+    <div class="settings-row">
+      <label>Riverbero</label>
+      <input type="range" id="reverbAmountSlider" min="0" max="100" step="1" value="0">
+      <span id="reverbAmountVal">0%</span>
+    </div>
+    <div class="settings-row">
+      <button class="settings-btn" id="btnResetEq">Reimposta</button>
     </div>
     <div class="settings-note">
-      L'autotune analizza l'intonazione e la avvicina alla nota più vicina della scala scelta
-      (elaborazione del segnale, applicata dopo la registrazione — non una rete neurale).
-      Quando importi una base musicale, la tonalità viene stimata automaticamente analizzando
-      l'armonia del brano (algoritmo chroma + profili di Krumhansl-Schmuckler); puoi sempre
-      correggerla a mano qui sopra. Il potenziamento vocale è una catena di filtri professionale
-      in tempo reale (non IA generativa).
-    </div>
-  </div>
-
-  <div class="dropdown" id="menuHelp">
-    <h4>Come funziona</h4>
-    <div class="help-text">
-      1) Importa la base musicale da <b>File</b> (facoltativo). La tonalità viene rilevata automaticamente.<br>
-      2) Premi <b>●</b> per registrare la voce: la base si riproduce insieme, se presente.<br>
-      <b>⚠ Usa le cuffie</b> durante la registrazione: se la base esce dagli altoparlanti, il microfono la capta insieme alla tua voce e questo può rovinare la registrazione vocale.<br>
-      3) Premi di nuovo <b>●</b> (ora rosso e lampeggiante) per fermare la registrazione.<br>
-      4) Regola volume/mute/solo sulle tracce a sinistra. Usa <b>⋯</b> per eliminare il contenuto di una traccia.<br>
-      5) Apri <b>Impostazioni</b> per autotune (tonalità già rilevata) e potenziamento vocale.<br>
-      6) Premi <b>▶</b> per riascoltare dall'inizio, oppure esporta il mix finale in WAV.
-    </div>
-  </div>
-
-  <!-- ═══ WORKSPACE ═══ -->
-  <div class="workspace">
-    <div class="track-headers" id="trackHeaders"><!-- generato in JS --></div>
-    <div class="timeline-area">
-      <div class="timeline-scroll" id="timelineScroll">
-        <div class="ruler" id="ruler"></div>
-        <div class="lanes" id="lanes">
-          <div class="lane" data-track="voice"><div class="lane-clip voice" id="voiceClip" style="width:0"></div><div class="lane-empty-hint" id="voiceHint">Nessuna registrazione — premi ●</div></div>
-          <div class="lane" data-track="music"><div class="lane-clip music" id="musicClip" style="width:0"></div><div class="lane-empty-hint" id="musicHint">Nessun file — importa da File</div></div>
-        </div>
-        <div class="playhead-line" id="playheadLine" style="left:0"></div>
-      </div>
+      Equalizzatore a 3 bande (bassi/medi/alti, ±12 dB) e mandata a un riverbero condiviso,
+      applicati in tempo reale su questa traccia — inclusi anche quando esporti il mix in WAV.
     </div>
   </div>
 
@@ -350,12 +442,21 @@
     return audioCtx;
   }
 
-  // Garantisce che il contesto audio sia REALMENTE attivo prima di far partire
-  // suoni. Il browser può lasciare l'AudioContext in stato "suspended" finché
-  // non viene esplicitamente ripreso: se si avviano le sorgenti senza aspettare
-  // che resume() sia completato, capita che parta tutto "in silenzio" (o con un
-  // ritardo/troncamento) perché il grafo audio non era ancora collegato
-  // all'uscita reale. Questa è una delle cause più comuni di "non sento niente".
+  // Bus di riverbero condiviso: ogni traccia manda al bus una quantità regolabile
+  // del proprio segnale (equalizzato), il bus lo elabora con l'impulse response
+  // e lo restituisce al master. È l'architettura classica "send/return" usata
+  // nei mixer, più efficiente che avere un riverbero separato per ogni traccia.
+  let reverbBus = null, reverbReturn = null;
+  function ensureReverbBus(){
+    if (reverbBus) return;
+    reverbBus = audioCtx.createConvolver();
+    reverbBus.buffer = makeSyntheticImpulse(audioCtx, 2.4, 2.4);
+    reverbReturn = audioCtx.createGain();
+    reverbReturn.gain.value = 1;
+    reverbBus.connect(reverbReturn);
+    reverbReturn.connect(masterGain);
+  }
+
   async function ensureRunning(){
     ensureContext();
     if (audioCtx.state !== "running"){
@@ -377,6 +478,8 @@
       muted:false, solo:false,
       hasClip:false, audioBuffer:null, originalBuffer:null,
       gainNode:null, analyserNode:null, dryGain:null, wetGain:null, enhancerInput:null,
+      eqLow:null, eqMid:null, eqHigh:null, reverbSend:null,
+      fx: { low:0, mid:0, high:0, reverb:0 },
       volSlider: document.querySelector(`.track-row[data-track="${id}"] .vol-slider`),
       muteBtn: document.querySelector(`.track-row[data-track="${id}"] .ic.mute`),
       soloBtn: document.querySelector(`.track-row[data-track="${id}"] .ic.solo`),
@@ -402,6 +505,12 @@
           <button class="ic arm" title="Abilita registrazione" disabled style="opacity:.5">●</button>
         </div>
         <div class="vol-row"><span>Vol</span><input type="range" class="vol-slider" min="0" max="1.2" step="0.01" value="0.9"></div>
+        <div class="track-autotune-row">
+          <button class="track-autotune-btn" id="voiceAutotuneToggle" title="Apri le impostazioni autotune per questa traccia">🎵 Autotune</button>
+        </div>
+        <div class="track-eq-row">
+          <button class="track-eq-btn" id="voiceEqToggle" title="Equalizzatore e riverbero per questa traccia">🎚️ EQ/Reverb</button>
+        </div>
         <div class="track-status">Vuota</div>
       </div>
     </div>
@@ -418,6 +527,9 @@
           <button class="ic importbtn" id="musicImportIcon" title="Importa audio">📂</button>
         </div>
         <div class="vol-row"><span>Vol</span><input type="range" class="vol-slider" min="0" max="1.2" step="0.01" value="0.9"></div>
+        <div class="track-eq-row">
+          <button class="track-eq-btn" id="musicEqToggle" title="Equalizzatore e riverbero per questa traccia">🎚️ EQ/Reverb</button>
+        </div>
         <div class="track-status">Vuota</div>
       </div>
     </div>
@@ -445,11 +557,139 @@
   wireCommon(voice);
   wireCommon(music);
 
+  // ── Popover autotune ancorato alla traccia Voce ─────────────
+  const autotunePopover = document.getElementById("autotunePopover");
+  const voiceAutotuneToggle = document.getElementById("voiceAutotuneToggle");
+
+  function positionAutotunePopover(){
+    const rect = voiceAutotuneToggle.getBoundingClientRect();
+    const popW = autotunePopover.offsetWidth || 300;
+    let left = rect.left;
+    if (left + popW > window.innerWidth - 10) left = window.innerWidth - popW - 10;
+    if (left < 10) left = 10;
+    autotunePopover.style.left = left + "px";
+    autotunePopover.style.top = (rect.bottom + 6) + "px";
+  }
+  function openAutotunePopover(){
+    autotunePopover.classList.add("open");
+    voiceAutotuneToggle.classList.add("is-on");
+    positionAutotunePopover();
+  }
+  function closeAutotunePopover(){
+    autotunePopover.classList.remove("open");
+    voiceAutotuneToggle.classList.remove("is-on");
+  }
+  voiceAutotuneToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (autotunePopover.classList.contains("open")) closeAutotunePopover();
+    else openAutotunePopover();
+  });
+  autotunePopover.addEventListener("click", (e) => e.stopPropagation());
+  document.getElementById("closeAutotunePopover").addEventListener("click", closeAutotunePopover);
+  document.addEventListener("click", closeAutotunePopover);
+  window.addEventListener("resize", () => { if (autotunePopover.classList.contains("open")) positionAutotunePopover(); });
+
+  // ── Popover EQ/Reverb (condiviso tra Voce e Base musicale) ──
+  const eqPopover = document.getElementById("eqReverbPopover");
+  const eqPopoverTitle = document.getElementById("eqPopoverTitle");
+  const voiceEqToggle = document.getElementById("voiceEqToggle");
+  const musicEqToggle = document.getElementById("musicEqToggle");
+  const eqLowSlider = document.getElementById("eqLowSlider");
+  const eqMidSlider = document.getElementById("eqMidSlider");
+  const eqHighSlider = document.getElementById("eqHighSlider");
+  const reverbAmountSlider = document.getElementById("reverbAmountSlider");
+  let eqPopoverTrack = null;
+  let eqPopoverAnchor = null;
+
+  function refreshEqSliderLabels(){
+    document.getElementById("eqLowVal").textContent = eqLowSlider.value+" dB";
+    document.getElementById("eqMidVal").textContent = eqMidSlider.value+" dB";
+    document.getElementById("eqHighVal").textContent = eqHighSlider.value+" dB";
+    document.getElementById("reverbAmountVal").textContent = reverbAmountSlider.value+"%";
+  }
+
+  function positionEqPopover(){
+    const rect = eqPopoverAnchor.getBoundingClientRect();
+    const popW = eqPopover.offsetWidth || 280;
+    let left = rect.left;
+    if (left + popW > window.innerWidth - 10) left = window.innerWidth - popW - 10;
+    if (left < 10) left = 10;
+    eqPopover.style.left = left + "px";
+    eqPopover.style.top = (rect.bottom + 6) + "px";
+  }
+  function openEqPopover(track, anchorBtn, label){
+    eqPopoverTrack = track;
+    eqPopoverAnchor = anchorBtn;
+    eqPopoverTitle.textContent = `🎚️ EQ & Reverb — ${label}`;
+    eqLowSlider.value = track.fx.low;
+    eqMidSlider.value = track.fx.mid;
+    eqHighSlider.value = track.fx.high;
+    reverbAmountSlider.value = track.fx.reverb*100;
+    refreshEqSliderLabels();
+    eqPopover.classList.add("open");
+    anchorBtn.classList.add("is-on");
+    positionEqPopover();
+  }
+  function closeEqPopover(){
+    if (eqPopoverAnchor) eqPopoverAnchor.classList.remove("is-on");
+    eqPopover.classList.remove("open");
+    eqPopoverTrack = null;
+    eqPopoverAnchor = null;
+  }
+  voiceEqToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (eqPopover.classList.contains("open") && eqPopoverTrack===voice) closeEqPopover();
+    else openEqPopover(voice, voiceEqToggle, "Voce");
+  });
+  musicEqToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (eqPopover.classList.contains("open") && eqPopoverTrack===music) closeEqPopover();
+    else openEqPopover(music, musicEqToggle, "Base musicale");
+  });
+  eqPopover.addEventListener("click", (e) => e.stopPropagation());
+  document.getElementById("closeEqPopover").addEventListener("click", closeEqPopover);
+  document.addEventListener("click", closeEqPopover);
+  window.addEventListener("resize", () => { if (eqPopover.classList.contains("open")) positionEqPopover(); });
+
+  function updateEqParam(param, biquadNode, dbValue){
+    eqPopoverTrack.fx[param] = dbValue;
+    if (biquadNode) biquadNode.gain.value = dbValue;
+  }
+  eqLowSlider.addEventListener("input", () => {
+    const v = parseFloat(eqLowSlider.value);
+    document.getElementById("eqLowVal").textContent = v+" dB";
+    updateEqParam("low", eqPopoverTrack.eqLow, v);
+  });
+  eqMidSlider.addEventListener("input", () => {
+    const v = parseFloat(eqMidSlider.value);
+    document.getElementById("eqMidVal").textContent = v+" dB";
+    updateEqParam("mid", eqPopoverTrack.eqMid, v);
+  });
+  eqHighSlider.addEventListener("input", () => {
+    const v = parseFloat(eqHighSlider.value);
+    document.getElementById("eqHighVal").textContent = v+" dB";
+    updateEqParam("high", eqPopoverTrack.eqHigh, v);
+  });
+  reverbAmountSlider.addEventListener("input", () => {
+    const pct = parseFloat(reverbAmountSlider.value);
+    document.getElementById("reverbAmountVal").textContent = pct+"%";
+    eqPopoverTrack.fx.reverb = pct/100;
+    if (eqPopoverTrack.reverbSend) eqPopoverTrack.reverbSend.gain.value = pct/100;
+  });
+  document.getElementById("btnResetEq").addEventListener("click", () => {
+    eqLowSlider.value = 0; eqMidSlider.value = 0; eqHighSlider.value = 0; reverbAmountSlider.value = 0;
+    refreshEqSliderLabels();
+    eqPopoverTrack.fx = { low:0, mid:0, high:0, reverb:0 };
+    if (eqPopoverTrack.eqLow) eqPopoverTrack.eqLow.gain.value = 0;
+    if (eqPopoverTrack.eqMid) eqPopoverTrack.eqMid.gain.value = 0;
+    if (eqPopoverTrack.eqHigh) eqPopoverTrack.eqHigh.gain.value = 0;
+    if (eqPopoverTrack.reverbSend) eqPopoverTrack.reverbSend.gain.value = 0;
+  });
+
+
   // ── Eliminazione contenuto traccia (pulsante ⋯) ────────────
   function clearTrack(track){
     if (!track.hasClip){ return; }
-    // Se stiamo registrando o riproducendo, fermiamo tutto prima di cancellare
-    // per evitare sorgenti audio "orfane" ancora collegate al grafo.
     if (isRecording || isPlaying) stopAll();
 
     track.hasClip = false;
@@ -542,6 +782,26 @@
 
   function buildChainIfNeeded(track){
     if (track.gainNode) return;
+    ensureReverbBus();
+
+    // Equalizzatore a 3 bande: bassi (low-shelf), medi (peaking), alti (high-shelf).
+    // I valori partono da quelli salvati su track.fx, così le regolazioni fatte
+    // nel popover restano valide anche se il grafo audio viene ricreato.
+    track.eqLow = audioCtx.createBiquadFilter();
+    track.eqLow.type = "lowshelf"; track.eqLow.frequency.value = 150; track.eqLow.gain.value = track.fx.low;
+    track.eqMid = audioCtx.createBiquadFilter();
+    track.eqMid.type = "peaking"; track.eqMid.frequency.value = 1000; track.eqMid.Q.value = 0.9; track.eqMid.gain.value = track.fx.mid;
+    track.eqHigh = audioCtx.createBiquadFilter();
+    track.eqHigh.type = "highshelf"; track.eqHigh.frequency.value = 6000; track.eqHigh.gain.value = track.fx.high;
+    track.eqLow.connect(track.eqMid);
+    track.eqMid.connect(track.eqHigh);
+
+    // Mandata al riverbero condiviso (send/return), indipendente dal volume della traccia.
+    track.reverbSend = audioCtx.createGain();
+    track.reverbSend.gain.value = track.fx.reverb;
+    track.eqHigh.connect(track.reverbSend);
+    track.reverbSend.connect(reverbBus);
+
     track.gainNode = audioCtx.createGain();
     track.analyserNode = audioCtx.createAnalyser();
     track.analyserNode.fftSize = 256;
@@ -550,12 +810,16 @@
     if (track.isVoice){
       track.dryGain = audioCtx.createGain();
       track.wetGain = audioCtx.createGain();
+      track.eqHigh.connect(track.dryGain);
       track.dryGain.connect(track.gainNode);
       const chain = buildVoiceEnhancerChain(audioCtx);
       track.enhancerInput = chain.input;
+      track.eqHigh.connect(track.enhancerInput);
       chain.output.connect(track.wetGain);
       track.wetGain.connect(track.gainNode);
       applyEnhancerState();
+    } else {
+      track.eqHigh.connect(track.gainNode);
     }
   }
 
@@ -564,12 +828,7 @@
     const src = audioCtx.createBufferSource();
     src.buffer = track.audioBuffer;
     const off = Math.min(offsetSeconds || 0, track.audioBuffer.duration - 0.01);
-    if (track.isVoice){
-      src.connect(track.dryGain);
-      src.connect(track.enhancerInput);
-    } else {
-      src.connect(track.gainNode);
-    }
+    src.connect(track.eqLow);
     src.start(0, Math.max(0, off));
     liveSources.push(src);
     return src;
@@ -593,10 +852,9 @@
     const ruler = document.getElementById("ruler");
     ruler.innerHTML = "";
     const bpm = currentBpm();
-    const barDuration = (60/bpm)*4; // secondi per battuta (4/4)
+    const barDuration = (60/bpm)*4;
     const barPx = barDuration*pixelsPerSecond;
     let step = Math.max(1, Math.ceil(48/barPx));
-    // arrotonda step a 1,2,4,8,16...
     const niceSteps=[1,2,4,8,16,32,64];
     step = niceSteps.find(s => s>=step) || 64;
     let bar=1;
@@ -661,7 +919,6 @@
     clockEl.textContent = formatTime(seconds);
   }
 
-  // ── Zoom ─────────────────────────────────────────────────
   document.getElementById("zoomIn").addEventListener("click", () => {
     pixelsPerSecond = Math.min(200, pixelsPerSecond*1.3);
     refreshTimeline();
@@ -677,26 +934,9 @@
   async function startRecording(){
     if (voice.hasClip && !confirm("Questo sovrascriverà la registrazione vocale attuale. Continuare?")) return;
 
-    // Attendiamo che il contesto sia davvero "running" PRIMA di far partire la
-    // base musicale di accompagnamento, altrimenti potrebbe non sentirsi in cuffia/altoparlanti
-    // durante la registrazione (la registrazione del microfono in sé non dipende
-    // dall'AudioContext e non viene mai compromessa da questo).
     await ensureRunning();
 
     try{
-      // NOTA IMPORTANTE: qui disattiviamo i filtri automatici del microfono
-      // (echoCancellation, noiseSuppression, autoGainControl). Se registri
-      // ascoltando la base musicale dagli ALTOPARLANTI (non in cuffia), il
-      // microfono capta anche quella musica insieme alla tua voce. L'echo
-      // cancellation del browser, nel tentativo di "rimuovere l'eco" della
-      // base che sente uscire dagli altoparlanti, può finire per attenuare o
-      // cancellare quasi del tutto anche la voce sovrapposta — con il
-      // risultato che, in riproduzione, si sente solo la musica (che è
-      // semplicemente il file originale, mai passato dal microfono) e non
-      // la voce. Disattivando questi filtri il segnale vocale resta integro;
-      // in cambio, se non usi le cuffie, la registrazione della voce potrà
-      // contenere un po' di "bleed" (la base che filtra dagli altoparlanti),
-      // ma questo è molto preferibile ad avere la voce del tutto assente.
       currentMicStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: false,
@@ -729,20 +969,15 @@
     if (!music.hasClip) return;
     const src = playSingleTrack(music, 0);
     src.onended = () => {
-      // Se il loop è attivo e stiamo ancora registrando, la base musicale
-      // riparte da capo così puoi continuare a cantare senza interruzioni.
       if (isRecording && loopOn) loopMusicDuringRecording();
     };
   }
 
   function stopRecording(){
     if (voice.recorder && voice.recorder.state !== "inactive") voice.recorder.stop();
-    stopSourcesOnly(); // ferma anche la base musicale insieme alla voce
+    stopSourcesOnly();
     isRecording = false;
     document.getElementById("btnRec").classList.remove("is-live");
-    // Riportiamo esplicitamente il punto di riascolto all'inizio: così quando
-    // premi ▶ subito dopo aver registrato, il riascolto parte sempre da 0 e
-    // non dal punto in cui ti sei fermato mentre cantavi.
     seekOffset = 0;
     stopClockLoop();
   }
@@ -798,18 +1033,12 @@
 
   // ── Trasporto: play / stop / seek / loop ───────────────────
   async function playAll(){
-    // 1) assicura il contesto attivo E ASPETTA che lo sia davvero
     await ensureRunning();
 
     const withClip = tracks.filter(t => t.hasClip);
     if (withClip.length === 0){ alert("Registra la voce o importa una base musicale prima di ascoltare."); return; }
 
-    // 2) costruisci PRIMA le catene audio di tutte le tracce coinvolte
     withClip.forEach(t => buildChainIfNeeded(t));
-    // 3) SOLO ORA calcola i volumi/mute/solo: se questo veniva fatto prima che
-    //    la catena esistesse, per una traccia mai suonata prima (tipicamente la
-    //    voce appena registrata) la funzione non aveva nulla su cui agire e le
-    //    impostazioni di volume/mute/solo non venivano applicate correttamente.
     recomputeGains();
 
     let maxDur = 0;
@@ -936,13 +1165,6 @@
   }
 
   // ── Stima automatica della tonalità della base musicale ─────
-  // Algoritmo: costruiamo un "cromagramma" (istogramma di energia per ciascuna
-  // delle 12 classi di altezza C, C#, D...) analizzando la traccia a blocchi,
-  // poi lo confrontiamo con i profili tonali di Krumhansl-Schmuckler (uno per
-  // il maggiore, uno per il minore) ruotati su ciascuna delle 12 possibili
-  // toniche: la combinazione con la correlazione più alta è la tonalità stimata.
-  // Non è una rete neurale, ma un'analisi armonica classica — gira interamente
-  // nel browser, in pochi secondi, senza bisogno di un server.
   const KS_MAJOR = [6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
   const KS_MINOR = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
 
@@ -964,8 +1186,6 @@
         chroma[pc]+=energy;
       }
       processed++;
-      // Cediamo periodicamente il controllo al thread principale per non
-      // bloccare l'interfaccia durante l'analisi di basi musicali lunghe.
       if (processed % 15 === 0){ await new Promise(r=>setTimeout(r,0)); }
     }
     return chroma;
@@ -986,7 +1206,7 @@
   async function estimateKey(buffer){
     const chroma = Array.from(await computeChromaVectorAsync(buffer, 30));
     const totalEnergy = chroma.reduce((a,b)=>a+b,0);
-    if (totalEnergy < 1e-6) return null; // segnale troppo debole/silenzioso per un'analisi affidabile
+    if (totalEnergy < 1e-6) return null;
     let best = { score:-Infinity, root:"C", scale:"major" };
     for (let r=0;r<12;r++){
       const scoreMaj = correlate(chroma, rotateProfile(KS_MAJOR, r));
@@ -1190,19 +1410,42 @@
     offlineMaster.connect(offlineCtx.destination);
     const anySolo = tracks.some(t => t.solo);
 
+    // Bus di riverbero condiviso, replicato qui per il rendering offline
+    // (stessa architettura send/return usata durante l'ascolto dal vivo).
+    const offlineReverbBus = offlineCtx.createConvolver();
+    offlineReverbBus.buffer = makeSyntheticImpulse(offlineCtx, 2.4, 2.4);
+    const offlineReverbReturn = offlineCtx.createGain();
+    offlineReverbReturn.gain.value = 1;
+    offlineReverbBus.connect(offlineReverbReturn);
+    offlineReverbReturn.connect(offlineMaster);
+
     function setupOffline(track){
       if (!track.hasClip) return;
       const src = offlineCtx.createBufferSource();
       src.buffer = track.audioBuffer;
+
+      const eqLow = offlineCtx.createBiquadFilter();
+      eqLow.type = "lowshelf"; eqLow.frequency.value = 150; eqLow.gain.value = track.fx.low;
+      const eqMid = offlineCtx.createBiquadFilter();
+      eqMid.type = "peaking"; eqMid.frequency.value = 1000; eqMid.Q.value = 0.9; eqMid.gain.value = track.fx.mid;
+      const eqHigh = offlineCtx.createBiquadFilter();
+      eqHigh.type = "highshelf"; eqHigh.frequency.value = 6000; eqHigh.gain.value = track.fx.high;
+      src.connect(eqLow); eqLow.connect(eqMid); eqMid.connect(eqHigh);
+
+      const reverbSend = offlineCtx.createGain();
+      reverbSend.gain.value = track.fx.reverb;
+      eqHigh.connect(reverbSend);
+      reverbSend.connect(offlineReverbBus);
+
       const gainNode = offlineCtx.createGain();
       let g = parseFloat(track.volSlider.value);
       if (track.muted) g=0; else if (anySolo && !track.solo) g=0;
       gainNode.gain.value = g;
       if (track.isVoice && document.getElementById("voiceEnhancer").checked){
         const chain = buildVoiceEnhancerChain(offlineCtx);
-        src.connect(chain.input); chain.output.connect(gainNode);
+        eqHigh.connect(chain.input); chain.output.connect(gainNode);
       } else {
-        src.connect(gainNode);
+        eqHigh.connect(gainNode);
       }
       gainNode.connect(offlineMaster);
       src.start(0);
@@ -1230,6 +1473,7 @@
       const isOpen = dd.classList.contains("open");
       document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
       document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+      closeAutotunePopover();
       if (!isOpen){
         dd.style.left = btn.offsetLeft+"px";
         dd.classList.add("open");
